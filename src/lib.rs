@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::{fmt::Display, time::Duration};
+use thiserror::Error;
 
 mod imagedata;
 pub use imagedata::{ImageData, ImageMetaData};
@@ -323,77 +324,69 @@ pub trait CameraUnit : CameraInfo {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 /// Errors returned by camera operations.
 pub enum Error {
     /// Error message.
+    #[error("Error: {0}")]
     Message(String),
     /// Invalid index.
+    #[error("Invalid index: {0}")]
     InvalidIndex(i32),
     /// Invalid ID.
+    #[error("Invalid ID: {0}")]
     InvalidId(i32),
     /// Invalid control type.
+    #[error("Invalid control type: {0}")]
     InvalidControlType(String),
     /// No cameras available.
+    #[error("No cameras available")]
     NoCamerasAvailable,
     /// Camera not open for access.
+    #[error("Camera not open for access")]
     CameraClosed,
     /// Camera already removed.
+    #[error("Camera already removed")]
     CameraRemoved,
     /// Invalid path.
+    #[error("Invalid path: {0}")]
     InvalidPath(String),
     /// Invalid format.
+    #[error("Invalid format: {0}")]
     InvalidFormat(String),
     /// Invalid size.
+    #[error("Invalid size: {0}")]
     InvalidSize(usize),
     /// Invalid image type.
+    #[error("Invalid image type: {0}")]
     InvalidImageType(String),
     /// Operation timed out.
+    #[error("Operation timed out")]
     TimedOut,
     /// Invalid sequence.
+    #[error("Invalid sequence")]
     InvalidSequence,
     /// Buffer too small.
+    #[error("Buffer too small: {0}")]
     BufferTooSmall(usize),
     /// Exposure in progress.
+    #[error("Exposure already in progress")]
     ExposureInProgress,
     /// General error.
+    #[error("General error: {0}")]
     GeneralError(String),
     /// Invalid mode.
+    #[error("Invalid mode: {0}")]
     InvalidMode(String),
     /// Exposure failed.
+    #[error("Exposure failed: {0}")]
     ExposureFailed(String),
     /// Invalid value.
+    #[error("Invalid value: {0}")]
     InvalidValue(String),
     /// Out of bounds.
+    #[error("Out of bounds: {0}")]
     OutOfBounds(String),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = match self {
-            Error::Message(msg) => msg.clone(),
-            Error::InvalidIndex(idx) => format!("Invalid index: {}", idx),
-            Error::InvalidId(id) => format!("Invalid id: {}", id),
-            Error::InvalidControlType(t) => format!("Invalid control type: {}", t),
-            Error::NoCamerasAvailable => "No cameras available".to_string(),
-            Error::CameraClosed => "Camera closed".to_string(),
-            Error::CameraRemoved => "Camera removed".to_string(),
-            Error::InvalidPath(p) => format!("Invalid path: {}", p),
-            Error::InvalidFormat(f) => format!("Invalid format: {}", f),
-            Error::InvalidSize(s) => format!("Invalid size: {}", s),
-            Error::InvalidImageType(t) => format!("Invalid image type: {}", t),
-            Error::TimedOut => "Timed out".to_string(),
-            Error::InvalidSequence => "Invalid sequence".to_string(),
-            Error::BufferTooSmall(s) => format!("Buffer too small: {}", s),
-            Error::ExposureInProgress => "Exposure in progress".to_string(),
-            Error::GeneralError(msg) => msg.clone(),
-            Error::InvalidMode(msg) => msg.clone(),
-            Error::ExposureFailed(msg) => msg.clone(),
-            Error::InvalidValue(msg) => msg.clone(),
-            Error::OutOfBounds(msg) => msg.clone(),
-        };
-        write!(f, "{}", msg)
-    }
 }
 
 #[cfg(test)]
