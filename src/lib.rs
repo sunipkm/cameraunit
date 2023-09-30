@@ -61,7 +61,7 @@ pub trait CameraInfo {
     /// Get any associated unique identifier for the camera.
     /// 
     /// Defaults to `None` if unimplemented.
-    fn get_uuid(&self) -> Option<String> {
+    fn get_uuid(&self) -> Option<&str> {
         None
     }
 
