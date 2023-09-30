@@ -217,7 +217,7 @@ impl ImageData {
     /// Find the optimum exposure time and binning to reach a target pixel value.
     ///
     /// # Arguments
-    ///  * `percentile_pix` - The percentile of the pixel values to use as the target pixel value, in fraction.
+    ///  * `percentile_pix` - The percentile of the pixel values to use as the target pixel value, in percentage.
     ///  * `pixel_tgt` - The target pixel value, in fraction.
     ///  * `pixel_uncertainty` - The uncertainty of the target pixel value, in fraction.
     ///  * `min_allowed_exp` - The minimum allowed exposure time.
@@ -249,6 +249,10 @@ impl ImageData {
 
         if pixel_uncertainty < 1.6e-5f32 || pixel_uncertainty > 1f32 {
             return Err("Pixel uncertainty must be between 1.6e-5 and 1".to_string());
+        }
+
+        if percentile_pix < 0f32 || percentile_pix > 100f32 {
+            return Err("Percentile must be between 0 and 100".to_string());
         }
 
         if min_allowed_exp >= max_allowed_exp {
