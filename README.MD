@@ -14,7 +14,7 @@ You can use `cameraunit` to:
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-cameraunit = "3.1.0"
+cameraunit = "3.1.1"
 ```
 and this to your source code:
 ```rs
