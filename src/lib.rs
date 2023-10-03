@@ -3,7 +3,8 @@ use std::{fmt::Display, time::Duration};
 use thiserror::Error;
 
 mod imagedata;
-pub use imagedata::{ImageData, ImageMetaData, SerialImageData, SerialImageValidTypes};
+pub use imagedata::{ImageData, ImageMetaData, SerialImageData, SerialImagePixel, SerialImageStorageTypes};
+pub use image::{DynamicImage, ImageBuffer, ColorType, Pixel};
 
 #[deny(missing_docs)]
 #[derive(Clone, Copy)]
@@ -445,5 +446,23 @@ mod tests {
         assert!(res.is_ok());
         res.unwrap().save_fits(Path::new("."), "testser", "testprog", true, true)
             .unwrap();
+
+        let mut img = {
+            let mut meta: ImageMetaData = Default::default();
+            meta.timestamp = SystemTime::now();
+            meta.camera_name = "ZWO ASI533MM Pro".to_string();
+            meta.add_extended_attrib("TEST", "TEST");
+            let img = DynamicImage::from(ImageBuffer::<image::Rgb<u16>, Vec<u16>>::new(800, 600));
+            imagedata::ImageData::new(img, meta)
+        };
+        let bimg = img.get_image_mut().as_mut_rgb16().unwrap();
+        let mut rng = rand::thread_rng();
+        let vals: Vec<u16> = (0..bimg.width() * bimg.height() * 3)
+            .map(|_| rng.gen_range(0..255 * 255))
+            .collect();
+        bimg.copy_from_slice(&vals);
+        img.save_fits(Path::new("."), "test_color", "testprog", true, true)
+            .unwrap();
+        img.get_image().save(format!("test_color_{}.png", get_timestamp_millis(img.get_metadata().timestamp))).unwrap();
     }
 }
