@@ -3,7 +3,8 @@ use std::{fmt::Display, time::Duration};
 use thiserror::Error;
 
 mod imagedata;
-pub use imagedata::{ImageData, ImageMetaData, SerialImageData, SerialImagePixel, SerialImageStorageTypes};
+pub use imagedata::ImageData; 
+pub use serialimagedata::{ImageMetaData, SerialImageData, SerialImagePixel, SerialImageStorageTypes};
 pub use image::{DynamicImage, ImageBuffer, ColorType, Pixel};
 
 #[deny(missing_docs)]
@@ -408,7 +409,7 @@ pub enum Error {
 mod tests {
     use std::{path::Path, time::{Duration, UNIX_EPOCH, SystemTime}};
 
-    use crate::imagedata::SerialImageData;
+    use crate::SerialImageData;
 
     use super::*;
     use image::{DynamicImage, ImageBuffer};

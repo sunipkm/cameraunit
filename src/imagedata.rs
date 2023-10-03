@@ -1,170 +1,15 @@
 use fitsio::images::{ImageDescription, ImageType};
 use fitsio::FitsFile;
-use image::{DynamicImage, ImageBuffer, ColorType};
+use image::{ColorType, DynamicImage, ImageBuffer};
 use log::warn;
 use serde::{Deserialize, Serialize};
+use serialimagedata::{ImageMetaData, SerialImageData, SerialImagePixel, SerialImageStorageTypes};
 use std::fmt::Display;
 use std::fs::remove_file;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// image crate re-exports.
-
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-#[deny(missing_docs)]
-/// Image metadata structure.
-/// This structure implements the [`std::fmt::Display`] and [`std::clone::Clone`] traits.
-pub struct ImageMetaData {
-    /// Binning in X direction
-    pub bin_x: u32,
-    /// Binning in Y direction
-    pub bin_y: u32,
-    /// Top of image (pixels, binned coordinates)
-    pub img_top: u32,
-    /// Left of image (pixels, binned coordinates)
-    pub img_left: u32,
-    /// Camera temperature (C)
-    pub temperature: f32,
-    /// Exposure time
-    pub exposure: Duration,
-    /// Timestamp of the image
-    pub timestamp: SystemTime,
-    /// Name of the camera
-    pub camera_name: String,
-    /// Gain (raw)
-    pub gain: i64,
-    /// Offset (raw)
-    pub offset: i64,
-    /// Minimum gain (raw)
-    pub min_gain: i32,
-    /// Maximum gain (raw)
-    pub max_gain: i32,
-    extended_metadata: Vec<(String, String)>,
-}
-
-impl ImageMetaData {
-    /// Create a new image metadata structure.
-    pub fn new(
-        timestamp: SystemTime,
-        exposure: Duration,
-        temperature: f32,
-        bin_x: u32,
-        bin_y: u32,
-        camera_name: &str,
-        gain: i64,
-        offset: i64,
-    ) -> Self {
-        Self {
-            bin_x,
-            bin_y,
-            img_top: 0,
-            img_left: 0,
-            temperature,
-            exposure,
-            timestamp,
-            camera_name: camera_name.to_string(),
-            gain,
-            offset,
-            ..Default::default()
-        }
-    }
-
-    /// Create a new image metadata structure with full parameters.
-    pub fn full_builder(
-        bin_x: u32,
-        bin_y: u32,
-        img_top: u32,
-        img_left: u32,
-        temperature: f32,
-        exposure: Duration,
-        timestamp: SystemTime,
-        camera_name: &str,
-        gain: i64,
-        offset: i64,
-        min_gain: i32,
-        max_gain: i32,
-    ) -> Self {
-        Self {
-            bin_x,
-            bin_y,
-            img_top,
-            img_left,
-            temperature,
-            exposure,
-            timestamp,
-            camera_name: camera_name.to_string(),
-            gain,
-            offset,
-            min_gain,
-            max_gain,
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for ImageMetaData {
-    fn default() -> Self {
-        Self {
-            bin_x: 1,
-            bin_y: 1,
-            img_top: 0,
-            img_left: 0,
-            temperature: 0f32,
-            exposure: Duration::from_secs(0),
-            timestamp: UNIX_EPOCH,
-            camera_name: String::new(),
-            gain: 0,
-            offset: 0,
-            min_gain: 0,
-            max_gain: 0,
-            extended_metadata: Vec::new(),
-        }
-    }
-}
-
-impl Display for ImageMetaData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "ImageMetaData [{:#?}]:\n
-            \tCamera name: {}\n
-            \tImage Bin: {} x {}\n
-            \tImage Origin: {} x {}
-            \tExposure: {} s\n
-            \tGain: {}, Offset: {}\n
-            \tTemperature: {} C\n",
-            self.timestamp,
-            self.camera_name,
-            self.bin_x,
-            self.bin_y,
-            self.img_left,
-            self.img_top,
-            self.exposure.as_secs(),
-            self.gain,
-            self.offset,
-            self.temperature
-        )?;
-        if self.extended_metadata.len() > 0 {
-            write!(f, "\tExtended Metadata:\n")?;
-            for obj in self.extended_metadata.iter() {
-                write!(f, "\t\t{}: {}\n", obj.0, obj.1)?;
-            }
-        };
-        Ok(())
-    }
-}
-
-impl ImageMetaData {
-    /// Add an extended attribute to the image metadata using `vec::push()`.
-    ///
-    /// # Panics
-    ///
-    /// If the new capacity exceeds `isize::MAX` bytes.
-    pub fn add_extended_attrib(&mut self, key: &str, val: &str) {
-        self.extended_metadata
-            .push((key.to_string(), val.to_string()));
-    }
-}
 
 #[derive(Clone)]
 /// Image data structure
@@ -180,150 +25,6 @@ impl Display for ImageData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.meta)?;
         write!(f, "Size: {} x {}", self.img.width(), self.img.height())
-    }
-}
-
-/// Valid types for the serial image data structure: [`u8`], [`u16`], [`f32`].
-pub trait SerialImageStorageTypes {}
-
-impl SerialImageStorageTypes for u8 {}
-impl SerialImageStorageTypes for u16 {}
-impl SerialImageStorageTypes for f32 {}
-
-/// Serial image type enumeration. The enumeration variants are [`SerialImagePixel::U8`], [`SerialImagePixel::U16`], [`SerialImagePixel::F32`].
-/// The variants contain the number of elements per pixel.
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub enum SerialImagePixel {
-    U8(usize),
-    U16(usize),
-    F32(usize),
-}
-
-impl TryFrom<ColorType> for SerialImagePixel {
-    type Error = &'static str;
-    fn try_from(value: ColorType) -> Result<SerialImagePixel, &'static str> {
-        match value {
-            ColorType::L8 => Ok(SerialImagePixel::U8(1)),
-            ColorType::L16 => Ok(SerialImagePixel::U16(1)),
-            ColorType::Rgb8 => Ok(SerialImagePixel::U8(3)),
-            ColorType::Rgb16 => Ok(SerialImagePixel::U16(3)),
-            ColorType::Rgba8 => Ok(SerialImagePixel::U8(4)),
-            ColorType::Rgba16 => Ok(SerialImagePixel::U16(4)),
-            ColorType::La8 => Ok(SerialImagePixel::U8(2)),
-            ColorType::La16 => Ok(SerialImagePixel::U16(2)),
-            ColorType::Rgb32F => Ok(SerialImagePixel::F32(3)),
-            ColorType::Rgba32F => Ok(SerialImagePixel::F32(4)),
-            _ => Err("Unsupported image type"),
-        }
-    }
-}
-
-impl TryInto<ColorType> for SerialImagePixel {
-    type Error = &'static str;
-    fn try_into(self) -> Result<ColorType, &'static str> {
-        match self {
-            SerialImagePixel::U8(value) => {
-                if value == 1 {
-                    Ok(ColorType::L8)
-                } else if value == 3 {
-                    Ok(ColorType::Rgb8)
-                } else if value == 4 {
-                    Ok(ColorType::Rgba8)
-                } else if value == 2 {
-                    Ok(ColorType::La8)
-                } else {
-                    Err("Unsupported image type")
-                }
-            }
-            SerialImagePixel::U16(value) => {
-                if value == 1 {
-                    Ok(ColorType::L16)
-                } else if value == 3 {
-                    Ok(ColorType::Rgb16)
-                } else if value == 4 {
-                    Ok(ColorType::Rgba16)
-                } else if value == 2 {
-                    Ok(ColorType::La16)
-                } else {
-                    Err("Unsupported image type")
-                }
-            }
-            SerialImagePixel::F32(value) => {
-                if value == 3 {
-                    Ok(ColorType::Rgb32F)
-                } else if value == 4 {
-                    Ok(ColorType::Rgba32F)
-                } else {
-                    Err("Unsupported image type")
-                }
-            }
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-/// Serializable Image Data Structure.
-///
-/// This structure is derived from the [`ImageData`] structure and is used to serialize the image data.
-/// This structure implements the [`std::clone::Clone`] trait, as well as the [`std::convert::TryFrom`] and [`std::convert::TryInto`] traits.
-pub struct SerialImageData<T: SerialImageStorageTypes> {
-    meta: ImageMetaData,
-    imgdata: Vec<T>,
-    width: usize,
-    height: usize,
-    pixel: SerialImagePixel,
-}
-
-impl<T: SerialImageStorageTypes> SerialImageData<T> {
-    fn new(
-        meta: ImageMetaData,
-        imgdata: Vec<T>,
-        width: usize,
-        height: usize,
-        pixel: SerialImagePixel,
-    ) -> Self {
-        Self {
-            meta,
-            imgdata,
-            width,
-            height,
-            pixel,
-        }
-    }
-
-    /// Get the image metadata.
-    pub fn get_metadata(&self) -> &ImageMetaData {
-        &self.meta
-    }
-
-    /// Get a mutable reference to the image metadata.
-    pub fn get_mut_metadata(&mut self) -> &mut ImageMetaData {
-        &mut self.meta
-    }
-
-    /// Get the underlying raw image data.
-    pub fn get_image_data(&self) -> &Vec<T> {
-        &self.imgdata
-    }
-
-    /// Get a mutable reference to the underlying raw image data.
-    pub fn get_image_data_mut(&mut self) -> &mut Vec<T> {
-        &mut self.imgdata
-    }
-
-    /// Get the width of the image.
-    pub fn get_width(&self) -> usize {
-        self.width
-    }
-
-    /// Get the height of the image.
-    pub fn get_height(&self) -> usize {
-        self.height
-    }
-
-    /// Get the pixel type of the image. The pixel type is of [`SerialImagePixel`].
-    pub fn get_pixel(&self) -> SerialImagePixel {
-        self.pixel
     }
 }
 
@@ -577,16 +278,10 @@ impl ImageData {
         let primary_name: &str;
 
         match imgtype {
-            ColorType::L8
-            | ColorType::La8
-            | ColorType::Rgb8
-            | ColorType::Rgba8 => {
+            ColorType::L8 | ColorType::La8 | ColorType::Rgb8 | ColorType::Rgba8 => {
                 data_type = ImageType::UnsignedByte;
             }
-            ColorType::L16
-            | ColorType::La16
-            | ColorType::Rgb16
-            | ColorType::Rgba16 => {
+            ColorType::L16 | ColorType::La16 | ColorType::Rgb16 | ColorType::Rgba16 => {
                 data_type = ImageType::UnsignedShort;
             }
             ColorType::Rgb32F | ColorType::Rgba32F => {
@@ -693,7 +388,7 @@ impl ImageData {
         hdu.write_key(&mut fptr, "OFFSET", self.meta.offset)?;
         hdu.write_key(&mut fptr, "GAIN_MIN", self.meta.min_gain)?;
         hdu.write_key(&mut fptr, "GAIN_MAX", self.meta.max_gain)?;
-        for obj in self.meta.extended_metadata.iter() {
+        for obj in self.meta.get_extended_data().iter() {
             hdu.write_key(&mut fptr, &obj.0, obj.1.as_str())?;
         }
 
@@ -706,7 +401,6 @@ impl ImageData {
         fptr: &mut FitsFile,
         img_desc: &ImageDescription,
     ) -> Result<(), fitsio::errors::Error> {
-        
         let dat = self.img.to_luma_alpha8();
         let pixels = dat.pixels();
         let luma = pixels.map(|p| p[0]).collect::<Vec<u8>>();
@@ -719,11 +413,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_la16(&self,
+    fn write_la16(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_luma_alpha16();
         let pixels = dat.pixels();
         let luma = pixels.map(|p| p[0]).collect::<Vec<u16>>();
@@ -736,11 +431,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_rgb8(&self,
+    fn write_rgb8(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_rgb8();
         let pixels = dat.pixels();
         let red = pixels.map(|p| p[0]).collect::<Vec<u8>>();
@@ -757,11 +453,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_rgb16(&self,
+    fn write_rgb16(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_rgb16();
         let pixels = dat.pixels();
         let red = pixels.map(|p| p[0]).collect::<Vec<u16>>();
@@ -778,11 +475,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_rgb32(&self,
+    fn write_rgb32(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_rgb32f();
         let pixels = dat.pixels();
         let red = pixels.map(|p| p[0]).collect::<Vec<f32>>();
@@ -799,11 +497,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_rgba8(&self,
+    fn write_rgba8(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_rgba8();
         let pixels = dat.pixels();
         let red = pixels.map(|p| p[0]).collect::<Vec<u8>>();
@@ -824,11 +523,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_rgba16(&self,
+    fn write_rgba16(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_rgba16();
         let pixels = dat.pixels();
         let red = pixels.map(|p| p[0]).collect::<Vec<u16>>();
@@ -849,11 +549,12 @@ impl ImageData {
         Ok(())
     }
 
-    fn write_rgba32(&self,
+    fn write_rgba32(
+        &self,
         hdu: &fitsio::hdu::FitsHdu,
         fptr: &mut FitsFile,
-        img_desc: &ImageDescription,) -> Result<(), fitsio::errors::Error>
-    {
+        img_desc: &ImageDescription,
+    ) -> Result<(), fitsio::errors::Error> {
         let dat = self.img.to_rgb32f();
         let pixels = dat.pixels();
         let red = pixels.map(|p| p[0]).collect::<Vec<f32>>();
@@ -877,8 +578,9 @@ impl ImageData {
 
 impl Serialize for ImageData {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer {
+    where
+        S: serde::Serializer,
+    {
         let color = self.img.color();
         let out_color: SerialImagePixel = color.try_into().map_err(serde::ser::Error::custom)?;
         match out_color {
@@ -906,7 +608,13 @@ impl TryFrom<ImageData> for SerialImageData<u8> {
         let color = img.color();
         let width = img.width();
         let height = img.height();
-        let pixel = color.try_into()?;
+        let pixel: Result<SerialImagePixel, &'static str> = color.try_into();
+        let pixel = match pixel {
+            Ok(p) => p,
+            Err(msg) => {
+                return Err(msg);
+            }
+        };
         let imgdata = match color {
             ColorType::L8 => {
                 let img = img.into_luma8();
@@ -969,7 +677,7 @@ impl TryFrom<&ImageData> for SerialImageData<u8> {
             }
         };
         Ok(SerialImageData::new(
-            meta.clone(),
+            meta,
             imgdata,
             width as usize,
             height as usize,
@@ -1125,11 +833,11 @@ impl TryFrom<&ImageData> for SerialImageData<f32> {
 impl TryFrom<SerialImageData<u8>> for ImageData {
     type Error = &'static str;
     fn try_from(value: SerialImageData<u8>) -> Result<ImageData, &'static str> {
-        let meta = value.meta;
-        let imgdata = value.imgdata;
-        let width = value.width;
-        let height = value.height;
-        let color = value.pixel.try_into()?;
+        let meta = value.get_metadata();
+        let imgdata = value.get_data().clone();
+        let width = value.width();
+        let height = value.height();
+        let color = value.pixel().try_into()?;
 
         let img = match color {
             ColorType::L8 => {
@@ -1156,18 +864,18 @@ impl TryFrom<SerialImageData<u8>> for ImageData {
                 return Err("Unsupported image type");
             }
         };
-        Ok(ImageData::new(img, meta))
+        Ok(ImageData::new(img, meta.clone()))
     }
 }
 
 impl TryFrom<&SerialImageData<u8>> for ImageData {
     type Error = &'static str;
     fn try_from(value: &SerialImageData<u8>) -> Result<ImageData, &'static str> {
-        let meta = value.meta.clone();
-        let imgdata = value.imgdata.clone();
-        let width = value.width;
-        let height = value.height;
-        let color = value.pixel.try_into()?;
+        let meta = value.get_metadata().clone();
+        let imgdata = value.get_data().clone();
+        let width = value.width();
+        let height = value.height();
+        let color = value.pixel().try_into()?;
 
         let img = match color {
             ColorType::L8 => {
@@ -1201,11 +909,11 @@ impl TryFrom<&SerialImageData<u8>> for ImageData {
 impl TryFrom<SerialImageData<u16>> for ImageData {
     type Error = &'static str;
     fn try_from(value: SerialImageData<u16>) -> Result<ImageData, &'static str> {
-        let meta = value.meta;
-        let imgdata = value.imgdata;
-        let width = value.width;
-        let height = value.height;
-        let color = value.pixel.try_into()?;
+        let meta = value.get_metadata();
+        let imgdata = value.get_data();
+        let width = value.width();
+        let height = value.height();
+        let color = value.pixel().try_into()?;
 
         let img =
             match color {
@@ -1255,18 +963,18 @@ impl TryFrom<SerialImageData<u16>> for ImageData {
                     return Err("Unsupported image type");
                 }
             };
-        Ok(ImageData::new(img, meta))
+        Ok(ImageData::new(img, meta.clone()))
     }
 }
 
 impl TryFrom<&SerialImageData<u16>> for ImageData {
     type Error = &'static str;
     fn try_from(value: &SerialImageData<u16>) -> Result<ImageData, &'static str> {
-        let meta = value.meta.clone();
-        let imgdata = value.imgdata.clone();
-        let width = value.width;
-        let height = value.height;
-        let color = value.pixel.try_into()?;
+        let meta = value.get_metadata().clone();
+        let imgdata = value.get_data().clone();
+        let width = value.width();
+        let height = value.height();
+        let color = value.pixel().try_into()?;
 
         let img =
             match color {
@@ -1323,11 +1031,11 @@ impl TryFrom<&SerialImageData<u16>> for ImageData {
 impl TryFrom<SerialImageData<f32>> for ImageData {
     type Error = &'static str;
     fn try_from(value: SerialImageData<f32>) -> Result<ImageData, &'static str> {
-        let meta = value.meta;
-        let imgdata = value.imgdata;
-        let width = value.width;
-        let height = value.height;
-        let color = value.pixel.try_into()?;
+        let meta = value.get_metadata();
+        let imgdata = value.get_data();
+        let width = value.width();
+        let height = value.height();
+        let color = value.pixel().try_into()?;
 
         let img =
             match color {
@@ -1355,18 +1063,18 @@ impl TryFrom<SerialImageData<f32>> for ImageData {
                     return Err("Unsupported image type");
                 }
             };
-        Ok(ImageData::new(img, meta))
+        Ok(ImageData::new(img, meta.clone()))
     }
 }
 
 impl TryFrom<&SerialImageData<f32>> for ImageData {
     type Error = &'static str;
     fn try_from(value: &SerialImageData<f32>) -> Result<ImageData, &'static str> {
-        let meta = value.meta.clone();
-        let imgdata = value.imgdata.clone();
-        let width = value.width;
-        let height = value.height;
-        let color = value.pixel.try_into()?;
+        let meta = value.get_metadata().clone();
+        let imgdata = value.get_data().clone();
+        let width = value.width();
+        let height = value.height();
+        let color = value.pixel().try_into()?;
 
         let img =
             match color {
