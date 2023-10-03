@@ -1,13 +1,13 @@
 use fitsio::images::{ImageDescription, ImageType};
 use fitsio::FitsFile;
-use image::{ColorType, DynamicImage, ImageBuffer};
+use image::{ColorType, DynamicImage};
 use log::warn;
-use serde::{Deserialize, Serialize};
-use serialimagedata::{ImageMetaData, SerialImageData, SerialImagePixel, SerialImageStorageTypes};
+use serde::Serialize;
+use serialimagedata::{ImageMetaData, SerialImageData, SerialImagePixel};
 use std::fmt::Display;
 use std::fs::remove_file;
 use std::path::Path;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, UNIX_EPOCH};
 
 /// image crate re-exports.
 
@@ -603,46 +603,11 @@ impl Serialize for ImageData {
 impl TryFrom<ImageData> for SerialImageData<u8> {
     type Error = &'static str;
     fn try_from(value: ImageData) -> Result<SerialImageData<u8>, &'static str> {
-        let img = value.img;
-        let meta = value.meta;
-        let color = img.color();
-        let width = img.width();
-        let height = img.height();
-        let pixel: Result<SerialImagePixel, &'static str> = color.try_into();
-        let pixel = match pixel {
-            Ok(p) => p,
-            Err(msg) => {
-                return Err(msg);
-            }
-        };
-        let imgdata = match color {
-            ColorType::L8 => {
-                let img = img.into_luma8();
-                img.into_raw()
-            }
-            ColorType::Rgb8 => {
-                let img = img.into_rgb8();
-                img.into_raw()
-            }
-            ColorType::Rgba8 => {
-                let img = img.into_rgba8();
-                img.into_raw()
-            }
-            ColorType::La8 => {
-                let img = img.into_luma_alpha8();
-                img.into_raw()
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(SerialImageData::new(
-            meta,
-            imgdata,
-            width as usize,
-            height as usize,
-            pixel,
-        ))
+        let img = value.img.clone();
+        let meta = value.meta.clone();
+        let mut img: SerialImageData<u8> = img.try_into()?;
+        img.set_metadata(meta);
+        Ok(img)
     }
 }
 
@@ -651,38 +616,9 @@ impl TryFrom<&ImageData> for SerialImageData<u8> {
     fn try_from(value: &ImageData) -> Result<SerialImageData<u8>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let color = img.color();
-        let width = img.width();
-        let height = img.height();
-        let pixel = color.try_into()?;
-        let imgdata = match color {
-            ColorType::L8 => {
-                let img = img.into_luma8();
-                img.into_raw()
-            }
-            ColorType::Rgb8 => {
-                let img = img.into_rgb8();
-                img.into_raw()
-            }
-            ColorType::Rgba8 => {
-                let img = img.into_rgba8();
-                img.into_raw()
-            }
-            ColorType::La8 => {
-                let img = img.into_luma_alpha8();
-                img.into_raw()
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(SerialImageData::new(
-            meta,
-            imgdata,
-            width as usize,
-            height as usize,
-            pixel,
-        ))
+        let mut img: SerialImageData<u8> = img.try_into()?;
+        img.set_metadata(meta);
+        Ok(img)
     }
 }
 
@@ -691,38 +627,9 @@ impl TryFrom<ImageData> for SerialImageData<u16> {
     fn try_from(value: ImageData) -> Result<SerialImageData<u16>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let color = img.color();
-        let width = img.width();
-        let height = img.height();
-        let pixel = color.try_into()?;
-        let imgdata = match color {
-            ColorType::L16 => {
-                let img = img.into_luma16();
-                img.into_raw()
-            }
-            ColorType::Rgb16 => {
-                let img = img.into_rgb16();
-                img.into_raw()
-            }
-            ColorType::Rgba16 => {
-                let img = img.into_rgba16();
-                img.into_raw()
-            }
-            ColorType::La16 => {
-                let img = img.into_luma_alpha16();
-                img.into_raw()
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(SerialImageData::new(
-            meta,
-            imgdata,
-            width as usize,
-            height as usize,
-            pixel,
-        ))
+        let mut img: SerialImageData<u16> = img.try_into()?;
+        img.set_metadata(meta);
+        Ok(img)
     }
 }
 
@@ -731,70 +638,20 @@ impl TryFrom<&ImageData> for SerialImageData<u16> {
     fn try_from(value: &ImageData) -> Result<SerialImageData<u16>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let color = img.color();
-        let width = img.width();
-        let height = img.height();
-        let pixel = color.try_into()?;
-        let imgdata = match color {
-            ColorType::L16 => {
-                let img = img.into_luma16();
-                img.into_raw()
-            }
-            ColorType::Rgb16 => {
-                let img = img.into_rgb16();
-                img.into_raw()
-            }
-            ColorType::Rgba16 => {
-                let img = img.into_rgba16();
-                img.into_raw()
-            }
-            ColorType::La16 => {
-                let img = img.into_luma_alpha16();
-                img.into_raw()
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(SerialImageData::new(
-            meta,
-            imgdata,
-            width as usize,
-            height as usize,
-            pixel,
-        ))
+        let mut img: SerialImageData<u16> = img.try_into()?;
+        img.set_metadata(meta);
+        Ok(img)
     }
 }
 
 impl TryFrom<ImageData> for SerialImageData<f32> {
     type Error = &'static str;
     fn try_from(value: ImageData) -> Result<SerialImageData<f32>, &'static str> {
-        let img = value.img;
-        let meta = value.meta;
-        let color = img.color();
-        let width = img.width();
-        let height = img.height();
-        let pixel = color.try_into()?;
-        let imgdata = match color {
-            ColorType::Rgb32F => {
-                let img = img.into_rgb32f();
-                img.into_raw()
-            }
-            ColorType::Rgba32F => {
-                let img = img.into_rgba32f();
-                img.into_raw()
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(SerialImageData::new(
-            meta,
-            imgdata,
-            width as usize,
-            height as usize,
-            pixel,
-        ))
+        let img = value.img.clone();
+        let meta = value.meta.clone();
+        let mut img: SerialImageData<f32> = img.try_into()?;
+        img.set_metadata(meta);
+        Ok(img)
     }
 }
 
@@ -803,68 +660,18 @@ impl TryFrom<&ImageData> for SerialImageData<f32> {
     fn try_from(value: &ImageData) -> Result<SerialImageData<f32>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let color = img.color();
-        let width = img.width();
-        let height = img.height();
-        let pixel = color.try_into()?;
-        let imgdata = match color {
-            ColorType::Rgb32F => {
-                let img = img.into_rgb32f();
-                img.into_raw()
-            }
-            ColorType::Rgba32F => {
-                let img = img.into_rgba32f();
-                img.into_raw()
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(SerialImageData::new(
-            meta,
-            imgdata,
-            width as usize,
-            height as usize,
-            pixel,
-        ))
+        let mut img: SerialImageData<f32> = img.try_into()?;
+        img.set_metadata(meta);
+        Ok(img)
     }
 }
 
 impl TryFrom<SerialImageData<u8>> for ImageData {
     type Error = &'static str;
     fn try_from(value: SerialImageData<u8>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata();
-        let imgdata = value.get_data().clone();
-        let width = value.width();
-        let height = value.height();
-        let color = value.pixel().try_into()?;
-
-        let img = match color {
-            ColorType::L8 => {
-                let img = image::GrayImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image L8 image")?;
-                DynamicImage::ImageLuma8(img)
-            }
-            ColorType::Rgb8 => {
-                let img = image::RgbImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image Rgb8 image")?;
-                DynamicImage::ImageRgb8(img)
-            }
-            ColorType::Rgba8 => {
-                let img = image::RgbaImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image Rgba8 image")?;
-                DynamicImage::ImageRgba8(img)
-            }
-            ColorType::La8 => {
-                let img = image::GrayAlphaImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image La8 image")?;
-                DynamicImage::ImageLumaA8(img)
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
-        Ok(ImageData::new(img, meta.clone()))
+        let meta = value.get_metadata().clone();
+        let img = value.try_into()?;
+        Ok(ImageData::new(img, meta))
     }
 }
 
@@ -872,36 +679,7 @@ impl TryFrom<&SerialImageData<u8>> for ImageData {
     type Error = &'static str;
     fn try_from(value: &SerialImageData<u8>) -> Result<ImageData, &'static str> {
         let meta = value.get_metadata().clone();
-        let imgdata = value.get_data().clone();
-        let width = value.width();
-        let height = value.height();
-        let color = value.pixel().try_into()?;
-
-        let img = match color {
-            ColorType::L8 => {
-                let img = image::GrayImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image L8 image")?;
-                DynamicImage::ImageLuma8(img)
-            }
-            ColorType::Rgb8 => {
-                let img = image::RgbImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image Rgb8 image")?;
-                DynamicImage::ImageRgb8(img)
-            }
-            ColorType::Rgba8 => {
-                let img = image::RgbaImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image Rgba8 image")?;
-                DynamicImage::ImageRgba8(img)
-            }
-            ColorType::La8 => {
-                let img = image::GrayAlphaImage::from_vec(width as u32, height as u32, imgdata)
-                    .ok_or("Could not create image La8 image")?;
-                DynamicImage::ImageLumaA8(img)
-            }
-            _ => {
-                return Err("Unsupported image type");
-            }
-        };
+        let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
@@ -909,61 +687,9 @@ impl TryFrom<&SerialImageData<u8>> for ImageData {
 impl TryFrom<SerialImageData<u16>> for ImageData {
     type Error = &'static str;
     fn try_from(value: SerialImageData<u16>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata();
-        let imgdata = value.get_data();
-        let width = value.width();
-        let height = value.height();
-        let color = value.pixel().try_into()?;
-
-        let img =
-            match color {
-                ColorType::L16 => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Luma<u16>, Vec<u16>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_luma16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::Rgb16 => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgb<u16>, Vec<u16>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgb16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::Rgba16 => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgba<u16>, Vec<u16>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgba16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::La16 => {
-                    let mut img =
-                        DynamicImage::from(ImageBuffer::<image::LumaA<u16>, Vec<u16>>::new(
-                            width as u32,
-                            height as u32,
-                        ));
-                    let imgbuf = img
-                        .as_mut_luma_alpha16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                _ => {
-                    return Err("Unsupported image type");
-                }
-            };
-        Ok(ImageData::new(img, meta.clone()))
+        let meta = value.get_metadata().clone();
+        let img = value.try_into()?;
+        Ok(ImageData::new(img, meta))
     }
 }
 
@@ -971,59 +697,7 @@ impl TryFrom<&SerialImageData<u16>> for ImageData {
     type Error = &'static str;
     fn try_from(value: &SerialImageData<u16>) -> Result<ImageData, &'static str> {
         let meta = value.get_metadata().clone();
-        let imgdata = value.get_data().clone();
-        let width = value.width();
-        let height = value.height();
-        let color = value.pixel().try_into()?;
-
-        let img =
-            match color {
-                ColorType::L16 => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Luma<u16>, Vec<u16>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_luma16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::Rgb16 => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgb<u16>, Vec<u16>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgb16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::Rgba16 => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgba<u16>, Vec<u16>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgba16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::La16 => {
-                    let mut img =
-                        DynamicImage::from(ImageBuffer::<image::LumaA<u16>, Vec<u16>>::new(
-                            width as u32,
-                            height as u32,
-                        ));
-                    let imgbuf = img
-                        .as_mut_luma_alpha16()
-                        .ok_or("Could not create image L16 image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                _ => {
-                    return Err("Unsupported image type");
-                }
-            };
+        let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
@@ -1031,39 +705,9 @@ impl TryFrom<&SerialImageData<u16>> for ImageData {
 impl TryFrom<SerialImageData<f32>> for ImageData {
     type Error = &'static str;
     fn try_from(value: SerialImageData<f32>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata();
-        let imgdata = value.get_data();
-        let width = value.width();
-        let height = value.height();
-        let color = value.pixel().try_into()?;
-
-        let img =
-            match color {
-                ColorType::Rgb32F => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgb<f32>, Vec<f32>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgb32f()
-                        .ok_or("Could not create image Rgb32F image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::Rgba32F => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgba<f32>, Vec<f32>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgba32f()
-                        .ok_or("Could not create image Rgba32F image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                _ => {
-                    return Err("Unsupported image type");
-                }
-            };
-        Ok(ImageData::new(img, meta.clone()))
+        let meta = value.get_metadata().clone();
+        let img = value.try_into()?;
+        Ok(ImageData::new(img, meta))
     }
 }
 
@@ -1071,37 +715,7 @@ impl TryFrom<&SerialImageData<f32>> for ImageData {
     type Error = &'static str;
     fn try_from(value: &SerialImageData<f32>) -> Result<ImageData, &'static str> {
         let meta = value.get_metadata().clone();
-        let imgdata = value.get_data().clone();
-        let width = value.width();
-        let height = value.height();
-        let color = value.pixel().try_into()?;
-
-        let img =
-            match color {
-                ColorType::Rgb32F => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgb<f32>, Vec<f32>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgb32f()
-                        .ok_or("Could not create image Rgb32F image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                ColorType::Rgba32F => {
-                    let mut img = DynamicImage::from(
-                        ImageBuffer::<image::Rgba<f32>, Vec<f32>>::new(width as u32, height as u32),
-                    );
-                    let imgbuf = img
-                        .as_mut_rgba32f()
-                        .ok_or("Could not create image Rgba32F image")?;
-                    imgbuf.copy_from_slice(&imgdata);
-                    img
-                }
-                _ => {
-                    return Err("Unsupported image type");
-                }
-            };
+        let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
