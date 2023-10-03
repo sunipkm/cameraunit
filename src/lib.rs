@@ -3,7 +3,7 @@ use std::{fmt::Display, time::Duration};
 use thiserror::Error;
 
 mod imagedata;
-pub use imagedata::{ImageData, ImageMetaData};
+pub use imagedata::{ImageData, ImageMetaData, SerialImageData, SerialImageValidTypes};
 
 #[deny(missing_docs)]
 #[derive(Clone, Copy)]
@@ -288,6 +288,20 @@ pub trait CameraUnit : CameraInfo {
         Err(Error::Message("Not implemented".to_string()))
     }
 
+    /// Flip the image along X and/or Y axes.
+    /// 
+    /// Raises a `Message` with the message `"Not implemented"` if unimplemented.
+    fn set_flip(&mut self, _x: bool, _y: bool) -> Result<(), Error> {
+        Err(Error::Message("Not implemented".to_string()))
+    }
+
+    /// Check if the image is flipped along X and/or Y axes.
+    /// 
+    /// Defaults to `(false, false)` if unimplemented.
+    fn get_flip(&self) -> (bool, bool) {
+        (false, false)
+    }
+
     /// Get the X binning factor.
     /// 
     /// Defaults to `1` if unimplemented.
@@ -393,6 +407,8 @@ pub enum Error {
 mod tests {
     use std::{path::Path, time::{Duration, UNIX_EPOCH, SystemTime}};
 
+    use crate::imagedata::SerialImageData;
+
     use super::*;
     use image::{DynamicImage, ImageBuffer};
     use rand::Rng;
@@ -420,5 +436,14 @@ mod tests {
         img.save_fits(Path::new("."), "test", "testprog", true, true)
             .unwrap();
         img.get_image().save(format!("test_{}.png", get_timestamp_millis(img.get_metadata().timestamp))).unwrap();
+        let simg: SerialImageData<u16> = img.clone().try_into().unwrap();
+        let imgstr = serde_json::to_string(&simg).unwrap();
+        let simg = serde_json::from_str::<SerialImageData<u16>>(&imgstr).unwrap();
+        let res: Result<SerialImageData<u8>, &'static str> = img.try_into();
+        assert!(res.is_err());
+        let res: Result<ImageData, &str> = simg.try_into();
+        assert!(res.is_ok());
+        res.unwrap().save_fits(Path::new("."), "testser", "testprog", true, true)
+            .unwrap();
     }
 }
