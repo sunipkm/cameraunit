@@ -14,22 +14,24 @@ You can use `cameraunit` to:
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-cameraunit = "2.1.0"
+cameraunit = "3.1.0"
 ```
 and this to your source code:
 ```rs
-use cameraunit::{CameraUnit, CameraInfo, ImageData, SerialImageData, SerialImagePixel};
+use cameraunit::{CameraUnit, CameraInfo, ImageData, DynamicSerialImage};
 ```
 
 ## Example
 Since this library is mostly trait-only, refer to projects (such as [`cameraunit_asi`](https://crates.io/crates/cameraunit_asi)) to see it in action.
 
-## `ImageData` and `SerialImageData`
+## `ImageData` and `DynamicSerialImage`
 The `cameraunit` API wraps the generic image types defined in the [`image`](https://crates.io/crates/image) crate, along with metadata, in order to obtain a portable, pixel format independent image type. The internal `image::DynamicImage` object can be saved into the supported formats. Additionally, `FITS` images can be created if the underlying data is 8- or 16-bit grayscale using the `ImageData::save_fits()` function.
 
-The `ImageData` object implements the `TryFrom` and `TryInto` traits in order to convert to the corresponding `SerialImageData<T>` format, where `T` is `u8`, `u16` or `f32`, based on the underlying `image::DynamicImage` color type. The `SerialImageData` object implements the `Serialize` and `Deserialize` traits to support transfer over the network.
+The `ImageData` object implements the `From` and `Into` traits to convert from and to a `DynamicSerialImage` without any loss of information, but with serialization and deserialization capabilities.
 
-Additionally, the underlying `image::{DynamicImage, ImageBuffer, ColorType}` are exported for convenience.
+The `ImageData` object additionally implements the `TryFrom` and `TryInto` traits in order to convert to the corresponding `SerialImageData<T>` format, where `T` is `u8`, `u16` or `f32`, based on the underlying `image::DynamicImage` color type, which is a concrete type. The `SerialImageData` object implements the `Serialize` and `Deserialize` traits to support transfer over the network.
+
+Additionally, the underlying `image::{DynamicImage, ImageBuffer, ColorType, Pixel}` are exported for convenience.
 
 ## Notes
 The interface provides two traits:

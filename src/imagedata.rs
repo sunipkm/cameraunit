@@ -3,7 +3,7 @@ use fitsio::FitsFile;
 use image::{ColorType, DynamicImage};
 use log::warn;
 use serde::Serialize;
-use serialimagedata::{ImageMetaData, SerialImageData, SerialImagePixel};
+use serialimage::{DynamicSerialImage, ImageMetaData, SerialImageBuffer, SerialImagePixel};
 use std::fmt::Display;
 use std::fs::remove_file;
 use std::path::Path;
@@ -11,7 +11,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 /// image crate re-exports.
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 /// Image data structure
 ///
 /// This structure contains the image data and the metadata associated with it.
@@ -585,137 +585,195 @@ impl Serialize for ImageData {
         let out_color: SerialImagePixel = color.try_into().map_err(serde::ser::Error::custom)?;
         match out_color {
             SerialImagePixel::U8(_) => {
-                let res: Result<SerialImageData<u8>, &'static str> = self.try_into();
+                let res: Result<SerialImageBuffer<u8>, &'static str> = self.try_into();
                 res.serialize(serializer)
             }
             SerialImagePixel::U16(_) => {
-                let res: Result<SerialImageData<u16>, &'static str> = self.try_into();
+                let res: Result<SerialImageBuffer<u16>, &'static str> = self.try_into();
                 res.serialize(serializer)
             }
             SerialImagePixel::F32(_) => {
-                let res: Result<SerialImageData<f32>, &'static str> = self.try_into();
+                let res: Result<SerialImageBuffer<f32>, &'static str> = self.try_into();
                 res.serialize(serializer)
             }
         }
     }
 }
 
-impl TryFrom<ImageData> for SerialImageData<u8> {
+impl TryFrom<ImageData> for SerialImageBuffer<u8> {
     type Error = &'static str;
-    fn try_from(value: ImageData) -> Result<SerialImageData<u8>, &'static str> {
+    fn try_from(value: ImageData) -> Result<SerialImageBuffer<u8>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let mut img: SerialImageData<u8> = img.try_into()?;
+        let mut img: SerialImageBuffer<u8> = img.try_into()?;
         img.set_metadata(meta);
         Ok(img)
     }
 }
 
-impl TryFrom<&ImageData> for SerialImageData<u8> {
+impl TryFrom<&ImageData> for SerialImageBuffer<u8> {
     type Error = &'static str;
-    fn try_from(value: &ImageData) -> Result<SerialImageData<u8>, &'static str> {
+    fn try_from(value: &ImageData) -> Result<SerialImageBuffer<u8>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let mut img: SerialImageData<u8> = img.try_into()?;
+        let mut img: SerialImageBuffer<u8> = img.try_into()?;
         img.set_metadata(meta);
         Ok(img)
     }
 }
 
-impl TryFrom<ImageData> for SerialImageData<u16> {
+impl TryFrom<ImageData> for SerialImageBuffer<u16> {
     type Error = &'static str;
-    fn try_from(value: ImageData) -> Result<SerialImageData<u16>, &'static str> {
+    fn try_from(value: ImageData) -> Result<SerialImageBuffer<u16>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let mut img: SerialImageData<u16> = img.try_into()?;
+        let mut img: SerialImageBuffer<u16> = img.try_into()?;
         img.set_metadata(meta);
         Ok(img)
     }
 }
 
-impl TryFrom<&ImageData> for SerialImageData<u16> {
+impl TryFrom<&ImageData> for SerialImageBuffer<u16> {
     type Error = &'static str;
-    fn try_from(value: &ImageData) -> Result<SerialImageData<u16>, &'static str> {
+    fn try_from(value: &ImageData) -> Result<SerialImageBuffer<u16>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let mut img: SerialImageData<u16> = img.try_into()?;
+        let mut img: SerialImageBuffer<u16> = img.try_into()?;
         img.set_metadata(meta);
         Ok(img)
     }
 }
 
-impl TryFrom<ImageData> for SerialImageData<f32> {
+impl TryFrom<ImageData> for SerialImageBuffer<f32> {
     type Error = &'static str;
-    fn try_from(value: ImageData) -> Result<SerialImageData<f32>, &'static str> {
+    fn try_from(value: ImageData) -> Result<SerialImageBuffer<f32>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let mut img: SerialImageData<f32> = img.try_into()?;
+        let mut img: SerialImageBuffer<f32> = img.try_into()?;
         img.set_metadata(meta);
         Ok(img)
     }
 }
 
-impl TryFrom<&ImageData> for SerialImageData<f32> {
+impl TryFrom<&ImageData> for SerialImageBuffer<f32> {
     type Error = &'static str;
-    fn try_from(value: &ImageData) -> Result<SerialImageData<f32>, &'static str> {
+    fn try_from(value: &ImageData) -> Result<SerialImageBuffer<f32>, &'static str> {
         let img = value.img.clone();
         let meta = value.meta.clone();
-        let mut img: SerialImageData<f32> = img.try_into()?;
+        let mut img: SerialImageBuffer<f32> = img.try_into()?;
         img.set_metadata(meta);
         Ok(img)
     }
 }
 
-impl TryFrom<SerialImageData<u8>> for ImageData {
+impl TryFrom<SerialImageBuffer<u8>> for ImageData {
     type Error = &'static str;
-    fn try_from(value: SerialImageData<u8>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata().clone();
+    fn try_from(value: SerialImageBuffer<u8>) -> Result<ImageData, &'static str> {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
         let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
 
-impl TryFrom<&SerialImageData<u8>> for ImageData {
+impl TryFrom<&SerialImageBuffer<u8>> for ImageData {
     type Error = &'static str;
-    fn try_from(value: &SerialImageData<u8>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata().clone();
+    fn try_from(value: &SerialImageBuffer<u8>) -> Result<ImageData, &'static str> {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
         let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
 
-impl TryFrom<SerialImageData<u16>> for ImageData {
+impl TryFrom<SerialImageBuffer<u16>> for ImageData {
     type Error = &'static str;
-    fn try_from(value: SerialImageData<u16>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata().clone();
+    fn try_from(value: SerialImageBuffer<u16>) -> Result<ImageData, &'static str> {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
         let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
 
-impl TryFrom<&SerialImageData<u16>> for ImageData {
+impl TryFrom<&SerialImageBuffer<u16>> for ImageData {
     type Error = &'static str;
-    fn try_from(value: &SerialImageData<u16>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata().clone();
+    fn try_from(value: &SerialImageBuffer<u16>) -> Result<ImageData, &'static str> {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
         let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
 
-impl TryFrom<SerialImageData<f32>> for ImageData {
+impl TryFrom<SerialImageBuffer<f32>> for ImageData {
     type Error = &'static str;
-    fn try_from(value: SerialImageData<f32>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata().clone();
+    fn try_from(value: SerialImageBuffer<f32>) -> Result<ImageData, &'static str> {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
         let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
     }
 }
 
-impl TryFrom<&SerialImageData<f32>> for ImageData {
+/// Note: We are not piggybacking off `impl TryFrom<SerialImageBuffer<f32>> for ImageData` because of a stack overflow.
+impl TryFrom<&SerialImageBuffer<f32>> for ImageData {
     type Error = &'static str;
-    fn try_from(value: &SerialImageData<f32>) -> Result<ImageData, &'static str> {
-        let meta = value.get_metadata().clone();
+    fn try_from(value: &SerialImageBuffer<f32>) -> Result<ImageData, &'static str> {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
         let img = value.try_into()?;
         Ok(ImageData::new(img, meta))
+    }
+}
+
+impl From<DynamicSerialImage> for ImageData {
+    fn from(value: DynamicSerialImage) -> ImageData {
+        let meta = value.get_metadata();
+        let meta = match meta {
+            Some(meta) => meta.clone(),
+            None => ImageMetaData::default(),
+        };
+        let img = value.into();
+        ImageData::new(img, meta)
+    }
+}
+
+impl From<&DynamicSerialImage> for ImageData {
+    fn from(value: &DynamicSerialImage) -> ImageData {
+        value.clone().into()
+    }
+}
+
+impl From<ImageData> for DynamicSerialImage {
+    fn from(value: ImageData) -> DynamicSerialImage {
+        let meta = value.get_metadata().clone();
+        let mut img: DynamicSerialImage = value.get_image().into();
+        img.set_metadata(meta);
+        img
+    }
+}
+
+impl From<&ImageData> for DynamicSerialImage {
+    fn from(value: &ImageData) -> DynamicSerialImage {
+        value.clone().into()
     }
 }
