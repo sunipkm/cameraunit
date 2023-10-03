@@ -155,7 +155,7 @@ impl Display for ImageMetaData {
 }
 
 impl ImageMetaData {
-    /// Add an extended attribute to the image metadata using [`std::alloc::vec::push()`].
+    /// Add an extended attribute to the image metadata using `vec::push()`.
     ///
     /// # Panics
     ///
@@ -190,7 +190,7 @@ impl SerialImageStorageTypes for u8 {}
 impl SerialImageStorageTypes for u16 {}
 impl SerialImageStorageTypes for f32 {}
 
-/// Serial image type enumeration. The enumeration variants are [`SerialImageType::U8`], [`SerialImageType::U16`], [`SerialImageType::F32`].
+/// Serial image type enumeration. The enumeration variants are [`SerialImagePixel::U8`], [`SerialImagePixel::U16`], [`SerialImagePixel::F32`].
 /// The variants contain the number of elements per pixel.
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum SerialImagePixel {
@@ -321,7 +321,7 @@ impl<T: SerialImageStorageTypes> SerialImageData<T> {
         self.height
     }
 
-    /// Get the pixel type of the image. The pixel type is of [`SerialImageType`].
+    /// Get the pixel type of the image. The pixel type is of [`SerialImagePixel`].
     pub fn get_pixel(&self) -> SerialImagePixel {
         self.pixel
     }
@@ -333,7 +333,7 @@ impl ImageData {
         Self { img, meta }
     }
 
-    /// Add an extended attribute to the image metadata using [`std::alloc::vec::push()`].
+    /// Add an extended attribute to the image metadata using `vec::push()`.
     ///
     /// # Panics
     /// If the new capacity exceeds `isize::MAX` bytes.
@@ -361,7 +361,7 @@ impl ImageData {
         &mut self.img
     }
 
-    /// Get the [`SerialImageType`] this [`ImageData`] structure can convert into.
+    /// Get the [`SerialImagePixel`] this [`ImageData`] structure can convert into.
     pub fn get_serial_pixel(self) -> Result<SerialImagePixel, &'static str> {
         self.img.color().try_into()
     }
