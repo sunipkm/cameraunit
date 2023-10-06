@@ -2,12 +2,7 @@ use std::any::Any;
 use std::{fmt::Display, time::Duration};
 use thiserror::Error;
 
-mod imagedata;
-pub use image::{ColorType, DynamicImage, ImageBuffer, Pixel};
-pub use imagedata::ImageData;
-pub use serialimage::{
-    DynamicSerialImage, ImageMetaData, SerialImageBuffer, SerialImagePixel, SerialImageStorageTypes,
-};
+pub use serialimage::{DynamicSerialImage, SerialImageBuffer, OptimumExposureConfig, Primitive, ImageMetaData, ImageResult};
 
 #[deny(missing_docs)]
 #[derive(Clone, Copy)]
@@ -161,7 +156,7 @@ pub trait CameraUnit: CameraInfo {
     /// Capture an image.
     ///
     /// Raises a `Message` with the message `"Not implemented"` if unimplemented.
-    fn capture_image(&self) -> Result<ImageData, Error> {
+    fn capture_image(&self) -> Result<DynamicSerialImage, Error> {
         Err(Error::Message("Not implemented".to_string()))
     }
 
@@ -175,7 +170,7 @@ pub trait CameraUnit: CameraInfo {
     /// Download the image captured in [`CameraUnit::start_exposure()`].
     ///
     /// Raises a `Message` with the message `"Not implemented"` if unimplemented.
-    fn download_image(&self) -> Result<ImageData, Error> {
+    fn download_image(&self) -> Result<DynamicSerialImage, Error> {
         Err(Error::Message("Not implemented".to_string()))
     }
 
@@ -405,91 +400,4 @@ pub enum Error {
     /// Out of bounds.
     #[error("Out of bounds: {0}")]
     OutOfBounds(String),
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{
-        path::Path,
-        time::{Duration, SystemTime, UNIX_EPOCH},
-    };
-
-    use crate::SerialImageBuffer;
-
-    use super::*;
-    use image::{DynamicImage, ImageBuffer};
-    use rand::Rng;
-
-    fn get_timestamp_millis(tstamp: SystemTime) -> u64 {
-        tstamp
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::from_secs(0))
-            .as_millis() as u64
-    }
-
-    #[test]
-    fn test_write_image() {
-        let mut img = {
-            let mut meta: ImageMetaData = Default::default();
-            meta.timestamp = SystemTime::now();
-            meta.camera_name = "ZWO ASI533MM Pro".to_string();
-            meta.add_extended_attrib("TEST", "TEST");
-            let img = DynamicImage::from(ImageBuffer::<image::Luma<u16>, Vec<u16>>::new(10, 10));
-            imagedata::ImageData::new(img, meta)
-        };
-        let bimg = img.get_image_mut().as_mut_luma16().unwrap();
-        let mut rng = rand::thread_rng();
-        let vals: Vec<u16> = (0..bimg.width() * bimg.height())
-            .map(|_| rng.gen_range(0..255 * 255))
-            .collect();
-        bimg.copy_from_slice(&vals);
-        img.save_fits(Path::new("."), "test", "testprog", true, true)
-            .unwrap();
-        img.get_image()
-            .save(format!(
-                "test_{}.png",
-                get_timestamp_millis(img.get_metadata().timestamp)
-            ))
-            .unwrap();
-        let simg = DynamicSerialImage::from(img.clone());
-        let imgstr = serde_json::to_string(&simg).unwrap();
-        println!("{}", imgstr);
-        println!("Got dynamic serial image");
-        let img = ImageData::from(&simg);
-        println!("Got image data");
-        let simg: SerialImageBuffer<u16> = img.clone().try_into().unwrap();
-        println!("Got serial image data");
-        let imgstr = serde_json::to_string(&simg).unwrap();
-        let simg = serde_json::from_str::<SerialImageBuffer<u16>>(&imgstr).unwrap();
-        let res: Result<SerialImageBuffer<u8>, &'static str> = img.try_into();
-        assert!(res.is_err());
-        let res: Result<ImageData, &str> = simg.try_into();
-        assert!(res.is_ok());
-        res.unwrap()
-            .save_fits(Path::new("."), "testser", "testprog", true, true)
-            .unwrap();
-
-        let mut img = {
-            let mut meta: ImageMetaData = Default::default();
-            meta.timestamp = SystemTime::now();
-            meta.camera_name = "ZWO ASI533MM Pro".to_string();
-            meta.add_extended_attrib("TEST", "TEST");
-            let img = DynamicImage::from(ImageBuffer::<image::Rgb<u16>, Vec<u16>>::new(10, 10));
-            imagedata::ImageData::new(img, meta)
-        };
-        let bimg = img.get_image_mut().as_mut_rgb16().unwrap();
-        let mut rng = rand::thread_rng();
-        let vals: Vec<u16> = (0..bimg.width() * bimg.height() * 3)
-            .map(|_| rng.gen_range(0..255 * 255))
-            .collect();
-        bimg.copy_from_slice(&vals);
-        img.save_fits(Path::new("."), "test_color", "testprog", true, true)
-            .unwrap();
-        img.get_image()
-            .save(format!(
-                "test_color_{}.png",
-                get_timestamp_millis(img.get_metadata().timestamp)
-            ))
-            .unwrap();
-    }
 }
