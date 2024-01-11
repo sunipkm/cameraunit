@@ -5,10 +5,10 @@ detectors through Rust traits `cameraunit::CameraUnit` and `cameraunit::CameraIn
 provides the `cameraunit::ImageData` struct to obtain images with extensive metadata.
 
 You can use `cameraunit` to:
- - Write user-friendly interfaces to C APIs to access different kinds of cameras in an uniform fashion,
+ - Write user-friendly interfaces to C APIs to access different kinds of cameras in a uniform fashion,
  - Acquire images from these cameras in different pixel formats (using the [`image`](https://crates.io/crates/image) crate as a backend),
  - Save these images to `FITS` files (requires the `cfitsio` C library, and uses the [`fitsio`](https://crates.io/crates/fitsio) crate) with extensive metadata,
- - Alternatively, use the internal [`image::DynamicImage`](https://docs.rs/image/0.24.7/image/enum.DynamicImage.html) object to obtain `JPEG`, `PNG`, `BMP` etc.
+ - Alternatively, use the internal [`serialimage::DynamicSerialImage`](https://docs.rs/crate/serialimage/latest/) object to obtain `JPEG`, `PNG`, `BMP` etc.
 
 ## Usage
 Add this to your `Cargo.toml`:
@@ -30,7 +30,7 @@ The interface provides two traits:
  state, such as changing the exposure, region of interest on the detector, etc. The object implementing this trait
  should not derive from the `Clone` trait, since ideally image capture should happen in a single thread.
  2. `CameraInfo`: This trait supports limited access to the camera, and provides the API for obtaining housekeeping
- data such as temperatures, gain etc while allowing limited mutation of the camera state, such as changing the
+ data such as temperatures, gain etc., while allowing limited mutation of the camera state, such as changing the
  detector temperature set point, turning cooler on and off, etc.
 
 Ideally, the crate implementing the camera interface should
