@@ -14,11 +14,11 @@ You can use `cameraunit` to:
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-cameraunit = "4.0.0"
+cameraunit = "5.0"
 ```
 and this to your source code:
 ```rs
-use cameraunit::{CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureConfig, SerialImageBuffer};
+use cameraunit::{CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
 ```
 
 ## Example

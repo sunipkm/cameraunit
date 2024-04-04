@@ -1,4 +1,4 @@
-/*! 
+/*!
 
 # cameraunit
 
@@ -20,7 +20,7 @@ cameraunit = "4.0.0"
 ```
 and this to your source code:
 ```no_run
-use cameraunit::{CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureConfig, SerialImageBuffer};
+use cameraunit::{CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
 ```
 
 ## Example
@@ -52,12 +52,12 @@ use std::{fmt::Display, time::Duration};
 use thiserror::Error;
 
 pub use serialimage::{
-    DynamicSerialImage, ImageMetaData, ImageResult, OptimumExposureConfig, Primitive,
-    SerialImageBuffer,
+    DynamicSerialImage, ImageMetaData, ImageResult, OptimumExposure, OptimumExposureBuilder,
+    Primitive, SerialImageBuffer,
 };
 
 #[deny(missing_docs)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 /// This structure defines a region of interest.
 /// The region of interest is defined in the un-binned pixel space.
 pub struct ROI {
@@ -299,9 +299,26 @@ pub trait CameraUnit: CameraInfo {
     /// # Arguments
     /// - `roi` - The region of interest.
     ///
+    /// Note:
+    /// - The region of interest is defined in the binned pixel space.
+    /// - Setting all values to `0` will set the ROI to the full detector size.
+    ///
+    ///
     /// # Returns
     /// The region of interest that was set, or error.
     fn set_roi(&mut self, roi: &ROI) -> Result<&ROI, Error>;
+
+    /// Set the pixel format.
+    /// 
+    /// # Arguments
+    /// - `format` - The pixel format. 
+    fn set_bpp(&mut self, bpp: PixelBpp) -> Result<PixelBpp, Error>;
+
+    /// Get the pixel format.
+    /// 
+    /// # Returns
+    /// The pixel format.
+    fn get_bpp(&self) -> PixelBpp;
 
     /// Flip the image along X and/or Y axes.
     ///
@@ -342,6 +359,44 @@ pub trait CameraUnit: CameraInfo {
     /// Defaults to `"Not implemented"` if unimplemented.
     fn get_status(&self) -> String {
         "Not implemented".to_string()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PixelBpp {
+    /// 8 bits per pixel. This is the default.
+    Bpp8 = 8,
+    /// 10 bits per pixel.
+    Bpp10 = 10,
+    /// 12 bits per pixel.
+    Bpp12 = 12,
+    /// 14 bits per pixel.
+    Bpp16 = 16,
+    /// 16 bits per pixel.
+    Bpp24 = 24,
+    /// 32 bits per pixel.
+    Bpp32 = 32,
+}
+
+impl From<u32> for PixelBpp {
+    /// Convert from `u32` to [`cameraunit::PixelBpp`].
+    /// 
+    /// # Arguments
+    /// - `value` - The value to convert.
+    /// Note: If the value is not one of the known values, `Bpp8` is returned.
+    /// 
+    /// # Returns
+    /// The corresponding [`cameraunit::PixelBpp`] value.
+    fn from(value: u32) -> Self {
+        match value {
+            8 => PixelBpp::Bpp8,
+            10 => PixelBpp::Bpp10,
+            12 => PixelBpp::Bpp12,
+            16 => PixelBpp::Bpp16,
+            24 => PixelBpp::Bpp24,
+            32 => PixelBpp::Bpp32,
+            _ => PixelBpp::Bpp8,
+        }
     }
 }
 
