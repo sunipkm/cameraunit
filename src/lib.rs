@@ -21,18 +21,19 @@ cameraunit = "6.0"
 ```
 and this to your source code:
 ```no_run
-use cameraunit::{CameraDriver, CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
+use cameraunit::{CameraDriver, CameraUnit, CameraInfo, Error, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
 ```
 
 ## Example
 Since this library is mostly trait-only, refer to projects (such as [`cameraunit_asi`](https://crates.io/crates/cameraunit_asi)) to see it in action.
 
 ## Notes
-The interface provides two traits:
- 1. `CameraUnit`: This trait supports extensive access to the camera, and provides the API for mutating the camera
+The interface provides three traits:
+ 1. `CameraDriver`: This trait provides the API to list available cameras, connect to a camera, and connect to the first available camera.
+ 2. `CameraUnit`: This trait supports extensive access to the camera, and provides the API for mutating the camera
  state, such as changing the exposure, region of interest on the detector, etc. The object implementing this trait
- should not derive from the `Clone` trait, since ideally image capture should happen in a single thread.
- 2. `CameraInfo`: This trait supports limited access to the camera, and provides the API for obtaining housekeeping
+ must not derive from the `Clone` trait, since ideally image capture should happen in a single thread.
+ 3. `CameraInfo`: This trait supports limited access to the camera, and provides the API for obtaining housekeeping
  data such as temperatures, gain etc., while allowing limited mutation of the camera state, such as changing the
  detector temperature set point, turning cooler on and off, etc.
 
@@ -229,6 +230,9 @@ pub trait CameraUnit: Send {
     /// Get exposure status. This function is useful for checking if a
     /// non-blocking exposure has finished running.
     fn image_ready(&self) -> Result<bool, Error>;
+
+    /// Get the remaining exposure time.
+    fn exposure_remaining(&self) -> Result<Duration, Error>;
 
     /// Set the exposure time.
     ///
@@ -573,4 +577,7 @@ pub enum Error {
     /// Out of bounds.
     #[error("Out of bounds: {0}")]
     OutOfBounds(String),
+    /// Exposure not started.
+    #[error("Exposure not started.")]
+    ExposureNotStarted,
 }

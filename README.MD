@@ -18,7 +18,7 @@ cameraunit = "6.0"
 ```
 and this to your source code:
 ```rs
-use cameraunit::{CameraDriver, CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
+use cameraunit::{CameraDriver, CameraUnit, CameraInfo, Error, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
 ```
 
 ## Example
