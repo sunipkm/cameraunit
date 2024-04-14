@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 /*!
 
 # cameraunit
@@ -16,11 +17,11 @@ You can use `cameraunit` to:
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-cameraunit = "4.0.0"
+cameraunit = "6.0"
 ```
 and this to your source code:
 ```no_run
-use cameraunit::{CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
+use cameraunit::{CameraDriver, CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
 ```
 
 ## Example
@@ -47,6 +48,7 @@ Ideally, the crate implementing the camera interface should
 
 */
 
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::{fmt::Display, time::Duration};
 use thiserror::Error;
@@ -56,8 +58,7 @@ pub use serialimage::{
     Primitive, SerialImageBuffer,
 };
 
-#[deny(missing_docs)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
 /// This structure defines a region of interest.
 /// The region of interest is defined in the un-binned pixel space.
 pub struct ROI {
@@ -85,10 +86,42 @@ impl Display for ROI {
     }
 }
 
+/// A trait object for a camera unit.
+pub type AnyCameraUnit = Box<dyn CameraUnit>;
+/// A trait object for a camera info.
+pub type AnyCameraInfo = Box<dyn CameraInfo>;
+
+/// Trait for camera drivers. Provides functions to
+/// list available devices and connect to a device.
+#[must_use]
+pub trait CameraDriver {
+    /// Get the number of available devices.
+    fn available_devices(&self) -> usize;
+    /// List available devices.
+    fn list_devices(&mut self) -> Result<Vec<CameraDescriptor>, Error>;
+    /// Connect to a device.
+    fn connect_device(
+        &mut self,
+        descriptor: &CameraDescriptor,
+    ) -> Result<(AnyCameraUnit, AnyCameraInfo), Error>;
+    /// Connect to the first available device.
+    fn connect_first_device(&mut self) -> Result<(AnyCameraUnit, AnyCameraInfo), Error>;
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+/// A structure to hold information about a camera device.
+pub struct CameraDescriptor {
+    /// The camera ID.
+    pub id: usize,
+    /// The camera name.
+    pub name: String,
+}
+
 /// Trait for obtaining camera information and cancelling any ongoing image capture.
 /// This trait is intended to be exclusively applied to a clonable object that can
 /// be passed to other threads for housekeeping purposes.
-pub trait CameraInfo {
+#[must_use]
+pub trait CameraInfo: Send + Sync {
     /// Check if camera is ready.
     fn camera_ready(&self) -> bool;
 
@@ -156,10 +189,10 @@ pub trait CameraInfo {
     /// Get the detector height in pixels.
     fn get_ccd_height(&self) -> u32;
 
-    /// Get the detector pixel size in microns.
+    /// Get the detector pixel size (x, y) in microns.
     ///
     /// Defaults to `None` if unimplemented.
-    fn get_pixel_size(&self) -> Option<f32> {
+    fn get_pixel_size(&self) -> Option<(f32, f32)> {
         None
     }
 }
@@ -167,7 +200,8 @@ pub trait CameraInfo {
 /// Trait for controlling the camera. This trait is intended to be applied to a
 /// non-clonable object that is used to capture images and can not be shared across
 /// threads.
-pub trait CameraUnit: CameraInfo {
+#[must_use]
+pub trait CameraUnit: Send {
     /// Get the camera vendor.
     fn get_vendor(&self) -> &str;
 
@@ -309,13 +343,13 @@ pub trait CameraUnit: CameraInfo {
     fn set_roi(&mut self, roi: &ROI) -> Result<&ROI, Error>;
 
     /// Set the pixel format.
-    /// 
+    ///
     /// # Arguments
-    /// - `format` - The pixel format. 
+    /// - `format` - The pixel format.
     fn set_bpp(&mut self, bpp: PixelBpp) -> Result<PixelBpp, Error>;
 
     /// Get the pixel format.
-    /// 
+    ///
     /// # Returns
     /// The pixel format.
     fn get_bpp(&self) -> PixelBpp;
@@ -360,9 +394,84 @@ pub trait CameraUnit: CameraInfo {
     fn get_status(&self) -> String {
         "Not implemented".to_string()
     }
+
+    /// Check if camera is ready.
+    fn camera_ready(&self) -> bool;
+
+    /// Get the camera name.
+    fn camera_name(&self) -> &str;
+
+    /// Cancel an ongoing exposure.
+    fn cancel_capture(&self) -> Result<(), Error>;
+
+    /// Get any associated unique identifier for the camera.
+    ///
+    /// Defaults to `None` if unimplemented.
+    fn get_uuid(&self) -> Option<&str> {
+        None
+    }
+
+    /// Check if the camera is currently capturing an image.
+    fn is_capturing(&self) -> bool;
+
+    /// Set the target detector temperature.
+    ///
+    /// Raises a `Message` with the message `"Not implemented"` if unimplemented.
+    fn set_temperature(&self, _temperature: f32) -> Result<f32, Error> {
+        Err(Error::Message("Not implemented".to_string()))
+    }
+
+    /// Get the current detector temperature.
+    ///
+    /// Defaults to `None` if unimplemented.
+    fn get_temperature(&self) -> Option<f32> {
+        None
+    }
+
+    /// Enable/disable cooler.
+    ///
+    /// Raises a `Message` with the message `"Not implemented"` if unimplemented.
+    fn set_cooler(&self, _on: bool) -> Result<(), Error> {
+        Err(Error::Message("Not implemented".to_string()))
+    }
+
+    /// Check if cooler is enabled/disabled.
+    ///
+    /// Defaults to `None` if unimplemented/not available.
+    fn get_cooler(&self) -> Option<bool> {
+        None
+    }
+
+    /// Get the current cooler power.
+    ///
+    /// Defaults to `None` if unimplemented.
+    fn get_cooler_power(&self) -> Option<f32> {
+        None
+    }
+
+    /// Set the cooler power.
+    ///
+    /// Raises a `GeneralError` with the message `"Not implemented"` if unimplemented.
+    fn set_cooler_power(&self, _power: f32) -> Result<f32, Error> {
+        Err(Error::Message("Not implemented".to_string()))
+    }
+
+    /// Get the detector width in pixels.
+    fn get_ccd_width(&self) -> u32;
+
+    /// Get the detector height in pixels.
+    fn get_ccd_height(&self) -> u32;
+
+    /// Get the detector pixel size (x, y) in microns.
+    ///
+    /// Defaults to `None` if unimplemented.
+    fn get_pixel_size(&self) -> Option<(f32, f32)> {
+        None
+    }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+/// Pixel bit depth.
 pub enum PixelBpp {
     /// 8 bits per pixel. This is the default.
     Bpp8 = 8,
@@ -380,11 +489,11 @@ pub enum PixelBpp {
 
 impl From<u32> for PixelBpp {
     /// Convert from `u32` to [`cameraunit::PixelBpp`].
-    /// 
+    ///
     /// # Arguments
     /// - `value` - The value to convert.
     /// Note: If the value is not one of the known values, `Bpp8` is returned.
-    /// 
+    ///
     /// # Returns
     /// The corresponding [`cameraunit::PixelBpp`] value.
     fn from(value: u32) -> Self {
@@ -400,7 +509,7 @@ impl From<u32> for PixelBpp {
     }
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
 /// Errors returned by camera operations.
 pub enum Error {
     /// Error message.

@@ -14,11 +14,11 @@ You can use `cameraunit` to:
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-cameraunit = "5.0"
+cameraunit = "6.0"
 ```
 and this to your source code:
 ```rs
-use cameraunit::{CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
+use cameraunit::{CameraDriver, CameraUnit, CameraInfo, DynamicSerialImage, OptimumExposureBuilder, SerialImageBuffer};
 ```
 
 ## Example
@@ -34,7 +34,7 @@ The interface provides two traits:
  detector temperature set point, turning cooler on and off, etc.
 
 Ideally, the crate implementing the camera interface should
- 1. Implement the `CameraUnit` and `CameraInfo` for a `struct` that does not allow cloning, and implement a second,
+ 1. Implement the `CameraUnit` for a `struct` that does not allow cloning, and implement a second,
  smaller structure that allows clone and implement only `CameraInfo` for that struct.
  2. Provide functions to get the number of available cameras, a form of unique identification for the cameras,
  and to open a camera using the unique identification. Additionally, a function to open the first available camera
