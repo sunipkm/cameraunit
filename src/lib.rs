@@ -50,6 +50,7 @@ Ideally, the crate implementing the camera interface should
 
 use serde::{Deserialize, Serialize};
 use std::any::Any;
+use std::sync::Arc;
 use std::{fmt::Display, time::Duration};
 use thiserror::Error;
 
@@ -80,7 +81,7 @@ impl Display for ROI {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "ROI: Origin = ({}, {}), Image Size = ({} x {}), bin_x = {}, bin_y = {}",
+            "ROI: Origin = ({}, {}), Image Size = ({} x {}), Bin = ({}, {})",
             self.x_min, self.y_min, self.width, self.height, self.bin_x, self.bin_y
         )
     }
@@ -89,7 +90,7 @@ impl Display for ROI {
 /// A trait object for a camera unit.
 pub type AnyCameraUnit = Box<dyn CameraUnit>;
 /// A trait object for a camera info.
-pub type AnyCameraInfo = Box<dyn CameraInfo>;
+pub type AnyCameraInfo = Arc<Box<dyn CameraInfo>>;
 
 /// Trait for camera drivers. Provides functions to
 /// list available devices and connect to a device.
