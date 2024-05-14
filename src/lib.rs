@@ -16,7 +16,7 @@ You can use `cameraunit` to:
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-cameraunit = "4.0.0"
+cameraunit = "5.1"
 ```
 and this to your source code:
 ```no_run
